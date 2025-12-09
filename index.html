@@ -3,28 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cyber Snake</title>
+    <title>Doodle Hopper</title>
     <link rel="stylesheet" href="style.css"> 
 </head>
 <body>
 
+    <div id="score-display">SCORE: 0</div>
+
     <div id="messageScreen">
-        <h1>CYBER SNAKE</h1>
-        <p>Eat the food (the white square) to grow!</p>
+        <h1>DOODLE HOPPER</h1>
+        <p>Bounce your way to the top!</p>
         
         <h2>Controls:</h2>
-        <p>Use the **Arrow Keys** or **WASD** to change direction.</p>
-        <p>Don't hit the wall or your own tail!</p>
+        <p>Move Left: **Left Arrow** or **A**</p>
+        <p>Move Right: **Right Arrow** or **D**</p>
 
-        <button id="startButton">START GAME</button>
-    </div>
-
-    <div id="game-info">
-        <div id="score">SCORE: 0</div>
-        <div id="speed">SPEED: 150ms</div>
+        <button id="startButton">START JUMPING</button>
     </div>
     
-    <canvas id="gameCanvas" width="400" height="400"></canvas>
+    <canvas id="gameCanvas" width="400" height="600"></canvas>
 
     <script src="script.js"></script>
 
