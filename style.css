@@ -1,0 +1,64 @@
+/* CSS for Doodle Hopper */
+body {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+    font-family: 'Comic Sans MS', cursive, sans-serif;
+    background-color: #f7f7f7; /* Light background */
+    color: #444444;
+    overflow: hidden;
+}
+
+#gameCanvas {
+    border: 2px solid #000000;
+    background-color: #d8eaff; /* Sky blue */
+}
+
+#score-display {
+    padding: 10px;
+    font-size: 2em;
+    color: #ff5555;
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+}
+
+#messageScreen {
+    position: absolute;
+    width: 80%;
+    max-width: 400px;
+    background: rgba(255, 255, 255, 0.9);
+    border: 3px solid #000000;
+    border-radius: 15px;
+    padding: 20px;
+    text-align: center;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    z-index: 20;
+}
+
+#messageScreen h1 {
+    color: #0088ff;
+    font-size: 2.5em;
+    margin-bottom: 5px;
+}
+
+#startButton {
+    padding: 15px 30px;
+    font-size: 1.5em;
+    background-color: #50fa7b;
+    color: #0d0d21;
+    border: 3px solid #000000;
+    border-radius: 10px;
+    cursor: pointer;
+    margin-top: 20px;
+    transition: background-color 0.2s;
+}
+
+#startButton:hover {
+    background-color: #f1fa8c;
+}
