@@ -1,202 +1,231 @@
 // --- Game Setup ---
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
-const scoreDisplay = document.getElementById('score');
-const speedDisplay = document.getElementById('speed');
+const scoreDisplay = document.getElementById('score-display');
 const messageScreen = document.getElementById('messageScreen');
 const startButton = document.getElementById('startButton');
 
-let gameLoopId;
 let gameRunning = false;
 let score = 0;
+let gameLoopId;
+const keyState = {};
 
-const GRID_SIZE = 20; // Size of each square in pixels
-const COLS = canvas.width / GRID_SIZE;
-const ROWS = canvas.height / GRID_SIZE;
-let speed = 150; // Milliseconds between updates (slower is easier)
+const CANVAS_WIDTH = canvas.width;
+const CANVAS_HEIGHT = canvas.height;
+const GRAVITY = 0.3; // Gravity pull
 
-// --- Snake Object ---
-let snake = [];
-let dx = GRID_SIZE; // Velocity X (starts moving right)
-let dy = 0; // Velocity Y
-let changingDirection = false;
+// --- Player Object ---
+const player = {
+    width: 40,
+    height: 40,
+    x: CANVAS_WIDTH / 2 - 20,
+    y: CANVAS_HEIGHT - 60,
+    dx: 0, // Horizontal velocity
+    dy: 0, // Vertical velocity
+    jumpVelocity: -10, // Initial jump force
+    color: '#ff5555'
+};
 
-// --- Food Object ---
-let food = {};
+// --- Platform Object ---
+const platformDefaults = {
+    width: 60,
+    height: 10,
+    color: '#50fa7b',
+    spawnMargin: 60 // Minimum vertical distance between platforms
+};
+let platforms = [];
+let scoreOffset = 0; // Tracks how much the world has scrolled
 
-// --- Functions ---
+// --- Core Functions ---
 
-function drawSquare(x, y, color) {
-    ctx.fillStyle = color;
-    ctx.fillRect(x, y, GRID_SIZE, GRID_SIZE);
-    // Optional: Draw a slight border for grid clarity
-    ctx.strokeStyle = '#000000';
-    ctx.strokeRect(x, y, GRID_SIZE, GRID_SIZE);
+function drawPlayer() {
+    // Draw a simple doodle character (square for simplicity)
+    ctx.fillStyle = player.color;
+    ctx.fillRect(player.x, player.y, player.width, player.height);
+    
+    // Draw eyes/details for character
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(player.x + 8, player.y + 10, 8, 8);
+    ctx.fillRect(player.x + 24, player.y + 10, 8, 8);
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(player.x + 10, player.y + 12, 4, 4);
+    ctx.fillRect(player.x + 26, player.y + 12, 4, 4);
 }
 
-function drawSnake() {
-    snake.forEach(segment => {
-        drawSquare(segment.x, segment.y, '#50fa7b'); // Neon green body
+function drawPlatforms() {
+    platforms.forEach(p => {
+        ctx.fillStyle = p.color;
+        ctx.fillRect(p.x, p.y, p.width, p.height);
     });
 }
 
-function drawFood() {
-    drawSquare(food.x, food.y, '#ffffff'); // White food
+function handleInput() {
+    const moveSpeed = 5;
+    
+    // Move Left (ArrowLeft or A)
+    if (keyState['ArrowLeft'] || keyState['a']) {
+        player.dx = -moveSpeed;
+    } 
+    // Move Right (ArrowRight or D)
+    else if (keyState['ArrowRight'] || keyState['d']) {
+        player.dx = moveSpeed;
+    } else {
+        player.dx = 0; // Stop movement when keys released
+    }
 }
 
-function advanceSnake() {
-    // Create the new head position
-    const head = { x: snake[0].x + dx, y: snake[0].y + dy };
+function update() {
+    // Apply horizontal movement
+    player.x += player.dx;
     
-    // Add the new head to the beginning of the snake array
-    snake.unshift(head);
-    
-    // Check if the snake ate the food
-    if (head.x === food.x && head.y === food.y) {
-        score += 10;
+    // Wrap player around edges
+    if (player.x > CANVAS_WIDTH) {
+        player.x = -player.width;
+    } else if (player.x < -player.width) {
+        player.x = CANVAS_WIDTH;
+    }
+
+    // Apply gravity and vertical movement
+    player.dy += GRAVITY;
+    player.y += player.dy;
+
+    // --- Camera Scroll Logic ---
+    // If player goes above the center of the screen, scroll the world down
+    if (player.y < CANVAS_HEIGHT / 2 && player.dy < 0) {
+        // Adjust score
+        const scrollAmount = -player.dy; 
+        scoreOffset += scrollAmount;
+        score = Math.floor(scoreOffset / 10);
         scoreDisplay.textContent = `SCORE: ${score}`;
         
-        // Increase speed every 50 points
-        if (score % 50 === 0 && speed > 50) {
-            speed -= 10;
-            speedDisplay.textContent = `SPEED: ${speed}ms`;
-            // Reset game loop with new speed
-            clearInterval(gameLoopId);
-            gameLoopId = setInterval(main, speed);
-        }
-        
-        // Generate new food
-        generateFood();
-        // NOTE: We do NOT pop the tail here, allowing the snake to grow
-    } else {
-        // If no food eaten, remove the last segment (pop the tail)
-        snake.pop();
+        // Move everything down
+        platforms.forEach(p => {
+            p.y += scrollAmount;
+        });
+        player.y += scrollAmount; // Keep player visually centered
     }
 
-    changingDirection = false;
-}
-
-function checkCollision() {
-    const head = snake[0];
-    
-    // 1. Wall collision
-    const hitLeftWall = head.x < 0;
-    const hitRightWall = head.x >= canvas.width;
-    const hitTopWall = head.y < 0;
-    const hitBottomWall = head.y >= canvas.height;
-
-    if (hitLeftWall || hitRightWall || hitTopWall || hitBottomWall) {
-        return true;
-    }
-
-    // 2. Self collision (start checking from the 4th segment, as the first three are always safe)
-    for (let i = 4; i < snake.length; i++) {
-        if (head.x === snake[i].x && head.y === snake[i].y) {
-            return true;
-        }
-    }
-    
-    return false;
-}
-
-function generateFood() {
-    function randomGridCoord(min, max) {
-        // Generate a random number that aligns with the grid (multiple of GRID_SIZE)
-        return Math.round((Math.random() * (max - min) + min) / GRID_SIZE) * GRID_SIZE;
-    }
-
-    food.x = randomGridCoord(0, canvas.width - GRID_SIZE);
-    food.y = randomGridCoord(0, canvas.height - GRID_SIZE);
-
-    // Check if the new food location is on the snake
-    snake.forEach(segment => {
-        if (segment.x === food.x && segment.y === food.y) {
-            // If it is, re-generate the food
-            generateFood();
+    // --- Platform Logic ---
+    platforms.forEach(p => {
+        // Check collision only when falling (dy > 0)
+        if (player.dy > 0 && 
+            player.x < p.x + p.width && 
+            player.x + player.width > p.x && 
+            player.y + player.height > p.y && 
+            player.y + player.height < p.y + p.height
+        ) {
+            // Collision detected: JUMP!
+            player.dy = player.jumpVelocity;
         }
     });
-}
 
-function changeDirection(event) {
-    // Prevent changing direction multiple times per game tick
-    if (changingDirection) return;
-    changingDirection = true;
+    // Remove platforms that fall off the screen
+    platforms = platforms.filter(p => p.y < CANVAS_HEIGHT);
     
-    const keyPressed = event.key.toLowerCase();
-    const LEFT = ['arrowleft', 'a'];
-    const RIGHT = ['arrowright', 'd'];
-    const UP = ['arrowup', 'w'];
-    const DOWN = ['arrowdown', 's'];
-    
-    const goingUp = dy === -GRID_SIZE;
-    const goingDown = dy === GRID_SIZE;
-    const goingRight = dx === GRID_SIZE;
-    const goingLeft = dx === -GRID_SIZE;
+    // Spawn new platforms
+    spawnPlatforms();
 
-    if (LEFT.includes(keyPressed) && !goingRight) {
-        dx = -GRID_SIZE;
-        dy = 0;
-    } else if (UP.includes(keyPressed) && !goingDown) {
-        dx = 0;
-        dy = -GRID_SIZE;
-    } else if (RIGHT.includes(keyPressed) && !goingLeft) {
-        dx = GRID_SIZE;
-        dy = 0;
-    } else if (DOWN.includes(keyPressed) && !goingUp) {
-        dx = 0;
-        dy = GRID_SIZE;
-    }
-}
-
-// --- Game Loop and Start ---
-
-function main() {
-    if (checkCollision()) {
+    // --- Game Over Check ---
+    if (player.y > CANVAS_HEIGHT) {
         gameOver();
-        return;
     }
-    
-    // Clear the canvas
-    ctx.fillStyle = '#000000';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    drawFood();
-    advanceSnake();
-    drawSnake();
 }
 
-function initGame() {
-    score = 0;
-    speed = 150;
-    snake = [
-        {x: 2 * GRID_SIZE, y: 0},
-        {x: 1 * GRID_SIZE, y: 0},
-        {x: 0, y: 0}
-    ];
-    dx = GRID_SIZE; // Start moving right
-    dy = 0;
+function spawnPlatforms() {
+    // Find the highest platform (platform with the lowest y-coordinate)
+    let highestY = 0;
+    if (platforms.length > 0) {
+        highestY = platforms.reduce((minY, p) => Math.min(minY, p.y), CANVAS_HEIGHT);
+    } else {
+        // If no platforms, seed the first platform at the bottom
+        platforms.push(createPlatform(CANVAS_WIDTH / 2, CANVAS_HEIGHT - 20));
+        highestY = CANVAS_HEIGHT - 20;
+    }
+
+    // Spawn new platforms above the current highest platform
+    while (highestY > 0) {
+        // New platform height should be at least platformDefaults.spawnMargin above the previous highest
+        highestY -= platformDefaults.spawnMargin + Math.random() * 20; 
+        
+        // Stop spawning if the new height is off screen
+        if (highestY < -50) break;
+
+        // Random horizontal position
+        const newX = Math.random() * (CANVAS_WIDTH - platformDefaults.width);
+        
+        platforms.push(createPlatform(newX, highestY));
+    }
+}
+
+function createPlatform(x, y) {
+    return {
+        x: x,
+        y: y,
+        width: platformDefaults.width,
+        height: platformDefaults.height,
+        color: platformDefaults.color
+    };
+}
+
+function draw() {
+    ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
     
-    scoreDisplay.textContent = `SCORE: ${score}`;
-    speedDisplay.textContent = `SPEED: ${speed}ms`;
-
-    generateFood();
-    gameRunning = true;
-    messageScreen.style.display = 'none';
-
-    // Start the main game loop
-    clearInterval(gameLoopId); 
-    gameLoopId = setInterval(main, speed);
+    drawPlatforms();
+    drawPlayer();
 }
 
 function gameOver() {
     gameRunning = false;
-    clearInterval(gameLoopId);
-    messageScreen.querySelector('h1').textContent = "GAME OVER";
-    messageScreen.querySelector('p').innerHTML = `Final Score: ${score}<br>Press START to play again.`;
+    cancelAnimationFrame(gameLoopId);
+    messageScreen.querySelector('h1').textContent = "GAME OVER!";
+    messageScreen.querySelector('p').innerHTML = `You fell! Final Score: ${score}<br>Press START to try again.`;
     messageScreen.querySelector('#startButton').textContent = "PLAY AGAIN";
     messageScreen.style.display = 'flex';
 }
 
+function initGame() {
+    score = 0;
+    scoreOffset = 0;
+    scoreDisplay.textContent = `SCORE: ${score}`;
+    
+    // Reset player state
+    player.x = CANVAS_WIDTH / 2 - 20;
+    player.y = CANVAS_HEIGHT - 60;
+    player.dx = 0;
+    player.dy = player.jumpVelocity; // Start with a jump
+    
+    // Reset platforms
+    platforms = [];
+    spawnPlatforms(); // Creates the initial set of platforms
+    
+    gameRunning = true;
+    messageScreen.style.display = 'none';
+    gameLoop();
+}
+
+// --- Game Loop ---
+function gameLoop() {
+    if (!gameRunning) return;
+
+    handleInput();
+    update();
+    draw();
+
+    gameLoopId = requestAnimationFrame(gameLoop);
+}
+
 // --- Event Listeners ---
-document.addEventListener('keydown', changeDirection);
+document.addEventListener('keydown', (e) => {
+    keyState[e.key] = true; 
+    keyState[e.key.toLowerCase()] = true; // Handle both cases
+});
+
+document.addEventListener('keyup', (e) => {
+    keyState[e.key] = false;
+    keyState[e.key.toLowerCase()] = false;
+});
+
 startButton.addEventListener('click', initGame);
+
+// Initial draw to show the start screen and character
+draw();
