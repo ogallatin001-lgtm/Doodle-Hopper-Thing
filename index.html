@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cyber Snake</title>
+    <link rel="stylesheet" href="style.css"> 
+</head>
+<body>
+
+    <div id="messageScreen">
+        <h1>CYBER SNAKE</h1>
+        <p>Eat the food (the white square) to grow!</p>
+        
+        <h2>Controls:</h2>
+        <p>Use the **Arrow Keys** or **WASD** to change direction.</p>
+        <p>Don't hit the wall or your own tail!</p>
+
+        <button id="startButton">START GAME</button>
+    </div>
+
+    <div id="game-info">
+        <div id="score">SCORE: 0</div>
+        <div id="speed">SPEED: 150ms</div>
+    </div>
+    
+    <canvas id="gameCanvas" width="400" height="400"></canvas>
+
+    <script src="script.js"></script>
+
+</body>
+</html>
